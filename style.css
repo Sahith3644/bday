@@ -1,0 +1,854 @@
+/* ============================================================
+   To my Paatu 🤍 — birthday letter
+   style.css
+   ------------------------------------------------------------
+   1.  Design tokens & fonts
+   2.  Base / reset
+   3.  Scene state machine (sealed → opening → reading)
+   4.  Ambient floating hearts
+   5.  SCENE 1: the sealed envelope (3D)
+   6.  SCENE 2: opening animation (seal → flap → letter slide)
+   7.  SCENE 3: the letter paper
+   8.  SCENE 4: ending, signature, replay, confetti
+   9.  Photo slideshow + background music (both are silent, control-free)
+   10. Reduced motion + narrow screens
+   ============================================================ */
+
+/* ---------- 1. Design tokens ---------- */
+:root {
+  --ivory:        #fdf8ef;
+  --paper:        #fffdf6;
+  --parchment:    #f4e7d3;
+  --parchment-2:  #efdcc2;
+  --parchment-3:  #e6cfae;
+  --rose:         #d9a3a3;
+  --rose-soft:    #e9c9c6;
+  --burgundy:     #6d1526;
+  --burgundy-deep:#55101f;
+  --gold:         #c2a05c;
+  --ink:          #4b3a32;
+  --ink-soft:     #7d6659;
+
+  --font-serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --font-script:'Great Vibes', 'Segoe Script', 'Brush Script MT', cursive;
+  --font-hand:  'Caveat', 'Segoe Script', 'Bradley Hand', 'Comic Sans MS', cursive;
+
+  --ease-soft: cubic-bezier(.22, .61, .36, 1);
+  --env-w: min(86vw, 430px);
+}
+
+/* ---------- 2. Base / reset ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  min-height: 100%;
+  font-family: var(--font-serif);
+  color: var(--ink);
+  overflow: hidden;                 /* each scene scrolls inside itself → no page-level scrolling, no horizontal scroll */
+  background:
+    radial-gradient(1100px 700px at 12% 8%,  rgba(217, 163, 163, .38), transparent 62%),
+    radial-gradient(900px 650px at 88% 90%,  rgba(109, 21, 38, .16),   transparent 60%),
+    linear-gradient(158deg, #fdf8ef 0%, #f7ead6 46%, #efdcc4 100%);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+p { margin: 0; }
+
+button {
+  font: inherit;
+  color: inherit;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  touch-action: manipulation;       /* removes the 300ms tap delay on touchscreens */
+}
+
+:focus-visible {
+  outline: 3px solid var(--burgundy);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+
+/* ---------- 3. Scene state machine ----------
+   body classes: is-sealed (start) → is-opening (+ is-flap-open,
+   is-letter-out) → is-reading.  A hidden scene uses visibility:hidden
+   so its content can neither be seen, scrolled to, nor read by
+   screen readers before the envelope is opened.                  */
+.scene {
+  position: fixed;
+  top: 0;                            /* fallbacks for browsers without `inset` */
+  right: 0;
+  bottom: 0;
+  left: 0;
+  inset: 0;
+  z-index: 2;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .7s ease, transform .7s ease, visibility 0s linear .7s;
+}
+
+.scene--stage { transform: scale(1.05); }                 /* drifts slightly away while fading out */
+.scene--letter { transform: translateY(26px); padding-bottom: env(safe-area-inset-bottom); }
+
+body.is-sealed .scene--stage,
+body.is-opening .scene--stage,
+body.is-flap-open .scene--stage,
+body.is-letter-out .scene--stage {
+  opacity: 1;
+  visibility: visible;
+  transform: scale(1);
+  transition-delay: 0s, 0s, 0s;
+}
+
+/* while reading, the envelope stage (and its already-finished animation)
+   stays in place but fades away, so nothing snaps back mid-transition */
+body.is-reading .scene--stage {
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(1.06);
+  pointer-events: none;
+  transition: opacity .7s ease, transform .7s ease, visibility 0s linear .7s;
+  transition-delay: 0s, 0s, .7s;
+}
+
+body.is-reading .scene--letter {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition-delay: 0s, 0s, 0s;
+}
+
+/* ---------- 4. Ambient floating hearts ---------- */
+.ambient {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.particle {
+  position: absolute;
+  top: -10vh;
+  left: var(--x, 50%);
+  color: var(--rose);
+  opacity: 0;
+  font-size: var(--size, 13px);
+  animation: drift var(--dur, 18s) linear var(--delay, 0s) infinite;
+  will-change: transform;
+}
+
+.particle--dot {
+  width: var(--size, 7px);
+  height: var(--size, 7px);
+  margin-left: calc(var(--size, 7px) / -2);
+  border-radius: 50%;
+  background: var(--rose);
+}
+
+.particle--heart {
+  margin-left: -0.5em;
+  text-shadow: 0 1px 6px rgba(109, 21, 38, .18);
+}
+
+@keyframes drift {
+  0%   { transform: translate3d(0, -12vh, 0) rotate(0deg);      opacity: 0; }
+  10%  { opacity: var(--alpha, .5); }
+  90%  { opacity: var(--alpha, .45); }
+  100% { transform: translate3d(var(--sway, 30px), 112vh, 0) rotate(300deg); opacity: 0; }
+}
+
+/* ---------- 4b. Background photo slideshow (Scene 3 backdrop) ----------
+   A fixed, edge-to-edge layer sitting between the page background and the
+   scenes (z-index 1 < 2), so the photos show through the transparent parts
+   of the reading view but never over the opaque ivory paper.
+   It only fades in once the reader is in the letter (body.is-reading). */
+.slideshow {
+  position: fixed;
+  top: 0;                            /* fallbacks for browsers without `inset` */
+  right: 0;
+  bottom: 0;
+  left: 0;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+  background: rgba(85, 16, 31, .05);   /* faint warm tint until the first photo lands */
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 1.4s ease, visibility 0s linear 1.4s;
+}
+
+body.is-reading .slideshow {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 1.4s ease, visibility 0s linear 0s;
+}
+
+/* One crossfade layer per photo. The wrapper (not the <img>) carries the
+   fade, so the sharp photo and its blurred fill fade in together. */
+.slideshow__slide {
+  position: absolute;
+  top: 0;                             /* fallbacks for browsers without `inset` */
+  right: 0;
+  bottom: 0;
+  left: 0;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 2.4s ease-in-out;   /* slow crossfade between two photos */
+}
+
+/* full brightness — the photographs are the backdrop, not a dimmed texture */
+.slideshow__slide.is-active { opacity: 1; }
+
+/* A blurred copy of the very same photo fills the screen edge to edge, so no
+   empty bands are ever left on unusual screen shapes. --photo is set by JS. */
+.slideshow__slide::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--photo, none);
+  background-size: cover;
+  background-position: center;
+  filter: blur(26px) saturate(1.06) brightness(1.04);
+  transform: scale(1.16);              /* hide the soft blur edge */
+}
+
+/* The photograph itself: never stretched, never cropped — the complete
+   picture always fits inside the screen, portrait or landscape alike. */
+.slideshow__photo {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+
+/* ---------- 5. SCENE 1: the sealed envelope ---------- */
+.stage__inner {
+  position: relative;
+  z-index: 1;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(18px, 4vh, 34px);
+  padding: clamp(20px, 5vh, 48px) 16px;
+  text-align: center;
+}
+
+/* soft vignette so the eye settles on the envelope */
+.scene--stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(115% 90% at 50% 45%, transparent 42%, rgba(85, 16, 31, .12));
+}
+
+.stage__eyebrow {
+  font-size: clamp(1.25rem, 4.6vw, 1.7rem);
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: .04em;
+  color: var(--burgundy);
+}
+
+.envelope-btn {
+  display: block;
+  padding: 0;
+  perspective: 1300px;             /* 3D space for the flap + letter */
+  border-radius: 10px;
+}
+
+.envelope-float {
+  display: block;
+  animation: float 5.4s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(-.5deg); }
+  50%      { transform: translateY(-15px) rotate(.6deg); }
+}
+
+.envelope {
+  position: relative;
+  display: block;
+  width: var(--env-w);
+  height: calc(var(--env-w) * 2 / 3);   /* 3:2 envelope, works without aspect-ratio */
+  transform-style: preserve-3d;
+  filter: drop-shadow(0 26px 34px rgba(85, 16, 31, .28));
+  transition: transform .45s var(--ease-soft);
+}
+
+.envelope-btn:hover .envelope { transform: translateY(-6px) scale(1.015); }
+.envelope-btn:active .envelope { transform: translateY(-2px) scale(.995); }
+
+/* back panel */
+.envelope__back {
+  position: absolute;
+  inset: 0;
+  display: block;
+  border-radius: 8px;
+  background: linear-gradient(175deg, #fbf1e0, #efdcc2);
+  box-shadow: inset 0 0 0 1px rgba(109, 21, 38, .10);
+}
+
+/* the letter that slides out */
+.letter-card {
+  position: absolute;
+  left: 7%;
+  right: 7%;
+  top: 8%;
+  height: 84%;
+  z-index: 2;
+  display: block;
+  padding: 16px 18px;
+  border-radius: 4px;
+  background:
+    repeating-linear-gradient(to bottom, transparent 0 25px, rgba(109, 21, 38, .10) 25px 26px),
+    linear-gradient(180deg, #fffdf7, #f8f0e1);
+  box-shadow: 0 6px 14px -8px rgba(85, 16, 31, .45);
+  transform: translateY(0);
+  transition: transform .95s var(--ease-soft) .08s;
+}
+
+.letter-card__heart {
+  display: block;
+  font-size: clamp(14px, 3.4vw, 18px);
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.letter-card__line {
+  display: block;
+  height: 12px;
+  margin-bottom: 13px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, rgba(109, 21, 38, .16), rgba(109, 21, 38, .07));
+}
+
+.letter-card__line--short { width: 62%; }
+
+/* front pocket with the address */
+.envelope__front {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: block;
+  overflow: hidden;
+  border-radius: 8px;
+  background:
+    linear-gradient(to top right, rgba(85, 16, 31, .07), transparent 42%),
+    linear-gradient(to top left,  rgba(85, 16, 31, .07), transparent 42%),
+    linear-gradient(168deg, #f9efe0 0%, #f2e2ca 55%, #ecd8bb 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(109, 21, 38, .12),
+    inset 0 -14px 22px -18px rgba(85, 16, 31, .5);
+}
+
+/* two subtle creases meeting where the flap tip sits */
+.envelope__front::before,
+.envelope__front::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 60%;
+  height: 1.5px;
+  background: linear-gradient(90deg, transparent, rgba(140, 100, 70, .38), transparent);
+}
+
+.envelope__front::before { left: 0;  transform-origin: left center;  transform: rotate(31deg); }
+.envelope__front::after  { right: 0; transform-origin: right center; transform: rotate(-31deg); }
+
+.envelope__address {
+  position: absolute;
+  left: 50%;
+  top: 27%;
+  transform: translate(-50%, -50%) rotate(-1.5deg);
+  width: 66%;                         /* narrowed to leave a clear corner for the stamp */
+  padding: clamp(6px, 1.6vw, 10px) clamp(8px, 2vw, 14px);
+  font-family: var(--font-hand);
+  font-size: clamp(1.05rem, 4.6vw, 1.5rem);
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--burgundy);
+  background: rgba(255, 253, 247, .82);
+  border: 1px dashed rgba(109, 21, 38, .35);
+  border-radius: 3px;
+  box-shadow: 0 2px 6px -4px rgba(85, 16, 31, .6);
+}
+
+/* postage stamp — the photo sits in a small paper frame with a vintage edge.
+   Positioned below the flap's diagonal (top: 39%) so it is visible while the
+   envelope is sealed, yet stays on the front pocket when the flap swings open.
+   Height is derived from width, so the photo keeps its 306x420 ratio. */
+.envelope__stamp {
+  position: absolute;
+  top: 39%;
+  right: 10px;
+  display: block;
+  width: clamp(52px, 14vw, 78px);      /* generous: the photo must read clearly */
+  padding: 4px;
+  background: rgba(255, 253, 247, .95);
+  border: 1px solid rgba(109, 21, 38, .35);
+  border-radius: 2px;
+  transform: rotate(4deg);
+  box-shadow: 0 3px 7px -4px rgba(85, 16, 31, .65);
+}
+
+.envelope__stamp img {
+  display: block;
+  width: 100%;
+  height: auto;                       /* aspect ratio preserved */
+  border: 1px dotted rgba(109, 21, 38, .55);   /* perforated stamp edge */
+  filter: sepia(.14) saturate(.95) contrast(1.02);  /* gentle vintage tint */
+}
+
+.envelope__postmark {
+  position: absolute;
+  left: 7%;
+  bottom: 9%;
+  display: grid;
+  place-items: center;
+  width: clamp(44px, 12vw, 58px);
+  height: clamp(44px, 12vw, 58px);
+  font-family: var(--font-serif);
+  font-size: clamp(9px, 2.4vw, 11px);
+  font-style: italic;
+  line-height: 1.15;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: rgba(109, 21, 38, .55);
+  border: 1.5px dashed rgba(109, 21, 38, .4);
+  border-radius: 50%;
+  transform: rotate(-13deg);
+}
+
+/* closing flap — hinged along the top edge */
+.envelope__flap {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: block;
+  clip-path: polygon(0 0, 100% 0, 50% 62%);
+  background: linear-gradient(172deg, #fbf2e3 0%, #f1e1c8 70%, #e9d5b6 100%);
+  filter: drop-shadow(0 4px 6px rgba(85, 16, 31, .28));
+  transform-origin: 50% 0%;
+  transform: rotateX(0deg);
+  transition: transform .85s cubic-bezier(.4, .06, .25, 1);
+}
+
+/* burgundy wax seal */
+.wax-seal {
+  position: absolute;
+  left: 50%;
+  top: 62%;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  width: clamp(52px, 15vw, 72px);
+  height: clamp(52px, 15vw, 72px);
+  border-radius: 47% 53% 50% 50% / 52% 48% 52% 48%;
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, .34), transparent 42%),
+    radial-gradient(circle at 68% 78%, rgba(0, 0, 0, .38), transparent 52%),
+    linear-gradient(150deg, #8a1c30, #6d1526 48%, #4d0e1c);
+  box-shadow:
+    0 6px 12px -6px rgba(50, 6, 14, .8),
+    inset 0 0 0 2px rgba(255, 255, 255, .10),
+    inset 0 0 14px rgba(0, 0, 0, .45);
+  transform: translate(-50%, -50%);
+}
+
+.wax-seal::before {
+  content: "";
+  position: absolute;
+  inset: 16%;
+  border: 1.5px dashed rgba(255, 255, 255, .28);
+  border-radius: 50%;
+}
+
+.wax-seal__mark {
+  font-family: var(--font-serif);
+  font-size: clamp(1.35rem, 5vw, 1.8rem);
+  font-weight: 700;
+  color: #f4d9c8;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .55);
+  transform: rotate(-6deg);
+}
+
+/* soft expanding ring when the wax breaks */
+.wax-seal::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid rgba(138, 28, 48, .55);
+  opacity: 0;
+  transform: scale(.7);
+}
+
+.stage__hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: clamp(.95rem, 3.6vw, 1.08rem);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--burgundy);
+  animation: hintPulse 2.6s ease-in-out infinite;
+}
+
+.stage__hint-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--burgundy);
+  box-shadow: 0 0 0 0 rgba(109, 21, 38, .45);
+  animation: dotPing 2.6s ease-out infinite;
+}
+
+@keyframes hintPulse { 0%, 100% { opacity: .72; } 50% { opacity: 1; } }
+
+@keyframes dotPing {
+  0%   { box-shadow: 0 0 0 0 rgba(109, 21, 38, .45); }
+  70%  { box-shadow: 0 0 0 12px rgba(109, 21, 38, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(109, 21, 38, 0); }
+}
+
+/* ---------- 6. SCENE 2: opening animation ---------- */
+/* stage 1 — the wax seal breaks */
+body.is-opening .wax-seal {
+  animation: sealBreak .55s ease-in forwards;
+}
+
+body.is-opening .wax-seal::after {
+  animation: sealRing .6s ease-out .05s forwards;
+}
+
+@keyframes sealBreak {
+  0%   { transform: translate(-50%, -50%) scale(1) rotate(0deg);    opacity: 1; }
+  30%  { transform: translate(-50%, -50%) scale(1.16) rotate(-7deg); opacity: 1; }
+  60%  { transform: translate(-50%, -50%) scale(.82) rotate(11deg);  opacity: .85; }
+  100% { transform: translate(-50%, -50%) scale(.25) rotate(40deg);  opacity: 0; filter: blur(2px); }
+}
+
+@keyframes sealRing {
+  0%   { opacity: .8; transform: scale(.7); }
+  100% { opacity: 0;  transform: scale(2.6); }
+}
+
+/* stage 2 — the flap rotates open in 3D */
+body.is-flap-open .envelope__flap {
+  transform: rotateX(-176deg);
+}
+
+/* stage 3 — the letter slides out of the pocket */
+body.is-letter-out .letter-card {
+  transform: translateY(-58%) rotate(-1.2deg);
+}
+
+/* the float gently pauses while the envelope is being opened */
+body.is-opening .envelope-float,
+body.is-flap-open .envelope-float,
+body.is-letter-out .envelope-float,
+body.is-reading .envelope-float {
+  animation-play-state: paused;
+}
+
+body.is-opening .envelope-btn,
+body.is-reading .envelope-btn {
+  pointer-events: none;            /* blocks accidental repeated clicks/taps */
+}
+
+/* ---------- 7. SCENE 3: the letter paper ---------- */
+.scene--letter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: clamp(22px, 5vh, 56px) 0 calc(14vh + env(safe-area-inset-bottom));
+}
+
+/* Empty space one full screen tall after the ending card: scrolling past the
+   last button leaves the photo slideshow completely alone on the screen.
+   It holds no content at all — just room for the pictures to be seen. */
+.letter-outro {
+  width: 100%;
+  height: calc(100vh + env(safe-area-inset-bottom));
+  height: calc(100dvh + env(safe-area-inset-bottom));   /* true visible height on mobile */
+  flex: none;
+  pointer-events: none;
+}
+
+.paper {
+  position: relative;
+  width: min(94vw, 760px);
+  margin: 0 auto;
+  padding: clamp(30px, 7vw, 68px) clamp(22px, 6vw, 62px);
+  /* Frosted ivory over full-brightness photos: the tint is strong enough to
+     keep the handwriting clearly readable, while the blurred backdrop lets
+     the pictures show through as a soft, moving wash behind the words. */
+  background: linear-gradient(180deg,
+    rgba(255, 253, 246, .82) 0%,
+    rgba(251, 245, 232, .80) 55%,
+    rgba(247, 238, 221, .80) 100%);
+  -webkit-backdrop-filter: blur(16px) saturate(1.05);
+  backdrop-filter: blur(16px) saturate(1.05);
+  border: 1px solid rgba(109, 21, 38, .12);
+  border-radius: 3px;
+  box-shadow:
+    0 40px 70px -40px rgba(85, 16, 31, .55),
+    0 8px 22px -14px rgba(85, 16, 31, .35),
+    inset 0 0 60px rgba(217, 163, 163, .12);
+}
+
+/* no backdrop blur available → keep the paper nearly opaque so the letter
+   stays readable whatever photograph happens to be behind it */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .paper {
+    background: linear-gradient(180deg,
+      rgba(255, 253, 246, .95) 0%,
+      rgba(251, 245, 232, .94) 55%,
+      rgba(247, 238, 221, .94) 100%);
+  }
+}
+
+/* subtle parchment grain (inline SVG, no external asset) */
+.paper::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* thin double rule along the top of the page */
+.paper::after {
+  content: "";
+  position: absolute;
+  top: clamp(14px, 3vw, 26px);
+  left: clamp(22px, 6vw, 62px);
+  right: clamp(22px, 6vw, 62px);
+  height: 4px;
+  border-top: 1px solid rgba(109, 21, 38, .28);
+  border-bottom: 1px solid rgba(109, 21, 38, .18);
+  pointer-events: none;
+}
+
+.paper__ornament {
+  display: block;
+  text-align: center;
+  color: var(--gold);
+  font-size: .95rem;
+  letter-spacing: .5em;
+}
+
+.paper__ornament--bottom { margin-top: clamp(20px, 4vw, 34px); }
+
+.paper__salutation {
+  margin: clamp(14px, 3vw, 22px) 0 clamp(14px, 3vw, 22px);
+  font-family: var(--font-hand);
+  font-size: clamp(1.7rem, 7.5vw, 2.5rem);
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--burgundy);
+}
+
+.paper__salutation:focus-visible {
+  outline: 3px solid rgba(109, 21, 38, .5);
+  outline-offset: 6px;
+}
+
+.paper__body {
+  font-family: var(--font-hand);
+  font-size: clamp(1.32rem, 5.2vw, 1.68rem);
+  font-weight: 500;
+  line-height: 1.72;
+  color: var(--ink);
+  /* a whisper of ivory behind the strokes keeps the ink crisp even where a
+     darker photograph shows through the frosted paper */
+  text-shadow: 0 1px 2px rgba(255, 253, 246, .55);
+  overflow-wrap: break-word;       /* very long words never cause horizontal scrolling */
+  -webkit-user-select: text;
+  user-select: text;               /* the letter stays selectable & copyable */
+}
+
+.paper__signoff {
+  margin-top: clamp(22px, 5vw, 36px);
+  font-family: var(--font-hand);
+  font-size: clamp(1.32rem, 5.2vw, 1.68rem);
+  font-weight: 600;
+  text-align: right;
+  color: var(--burgundy);
+}
+
+/* ---------- 8. SCENE 4: ending, signature, replay ---------- */
+.ending {
+  width: min(94vw, 760px);
+  margin: clamp(34px, 7vh, 66px) auto 0;
+  padding: clamp(30px, 7vw, 54px) clamp(20px, 5vw, 46px);
+  text-align: center;
+  background: linear-gradient(180deg, rgba(255, 253, 247, .86), rgba(248, 239, 224, .84));
+  -webkit-backdrop-filter: blur(16px) saturate(1.05);
+  backdrop-filter: blur(16px) saturate(1.05);
+  border: 1px solid rgba(109, 21, 38, .14);
+  border-radius: 3px;
+  box-shadow: 0 34px 60px -40px rgba(85, 16, 31, .55);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(34px);
+  transition: opacity .9s ease, transform .9s var(--ease-soft), visibility 0s linear .9s;
+}
+
+/* no backdrop blur available → keep the ending more opaque for legibility */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .ending {
+    background: linear-gradient(180deg, rgba(255, 253, 247, .97), rgba(248, 239, 224, .96));
+  }
+}
+
+.ending.is-revealed {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition-delay: 0s, 0s, 0s;
+}
+
+.ending__rule {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: clamp(18px, 4vw, 26px);
+  color: var(--rose);
+}
+
+.ending__rule::before,
+.ending__rule::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(109, 21, 38, .35), transparent);
+}
+
+.ending__greeting {
+  font-family: var(--font-script);
+  font-size: clamp(1.9rem, 8vw, 3.1rem);
+  line-height: 1.3;
+  color: var(--burgundy);
+  text-wrap: balance;
+}
+
+.ending__signature {
+  margin-top: clamp(14px, 3vw, 22px);
+  font-family: var(--font-hand);
+  font-size: clamp(1.3rem, 5vw, 1.6rem);
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.replay {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: clamp(24px, 5vw, 36px);
+  padding: clamp(12px, 3vw, 15px) clamp(26px, 6vw, 38px);
+  font-family: var(--font-serif);
+  font-size: clamp(1rem, 4vw, 1.1rem);
+  font-weight: 600;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ivory);
+  background: linear-gradient(160deg, #832034, var(--burgundy) 55%, var(--burgundy-deep));
+  border-radius: 999px;
+  box-shadow: 0 16px 30px -18px rgba(85, 16, 31, .9);
+  transition: transform .25s var(--ease-soft), box-shadow .25s var(--ease-soft), filter .25s;
+}
+
+.replay:hover  { transform: translateY(-3px); filter: brightness(1.08); box-shadow: 0 22px 34px -18px rgba(85, 16, 31, .95); }
+.replay:active { transform: translateY(0) scale(.98); }
+
+/* confetti canvas floats above the scenes, never captures clicks */
+.confetti {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  inset: 0;
+  z-index: 50;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* ---------- 9. Background music (autoplay-free, control-free) ----------
+   The <audio> element itself is invisible and unreachable by keyboard:
+   it only ever plays from the envelope tap, looping, as pure ambience. */
+.bg-music {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- 10. Reduced motion + narrow screens ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .envelope-float,
+  .stage__hint,
+  .stage__hint-dot {
+    animation: none !important;
+  }
+
+  .particle { display: none; }
+
+  /* the slideshow still shows a photo, but it stops crossfading (JS stops cycling) */
+  .slideshow__slide { transition: none !important; }
+
+  .scene,
+  .letter-card,
+  .envelope__flap,
+  .ending,
+  .envelope {
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+  }
+}
+
+/* very small phones: keep everything inside the viewport */
+@media (max-width: 380px) {
+  .envelope__postmark { display: none; }
+  :root { --env-w: min(90vw, 430px); }
+  .stage__hint { letter-spacing: .1em; }
+}
+
+/* tall screens: keep the envelope comfortably centred */
+@media (min-width: 900px) and (min-height: 760px) {
+  :root { --env-w: 460px; }
+}

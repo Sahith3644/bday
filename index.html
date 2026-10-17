@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>To my Paatu 🤍 — A Birthday Letter</title>
+  <meta name="description" content="A little something, just for you... a sealed birthday letter for Paatu.">
+  <meta name="theme-color" content="#f6ead6">
+
+  <!-- Inline (data-URI) favicon -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='0.9em' font-size='90'%3E%F0%9F%92%9D%3C/text%3E%3C/svg%3E">
+
+  <!-- Handwritten + serif fonts (graceful fallback to system fonts if offline) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Great+Vibes&display=swap">
+
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
+
+  <noscript>
+    <style>
+      /* Without JavaScript the sealed envelope cannot animate — show the letter instead. */
+      .scene--stage { display: none !important; }
+      .scene--letter { opacity: 1 !important; visibility: visible !important; transform: none !important; }
+      .ending { opacity: 1 !important; visibility: visible !important; transform: none !important; }
+      /* no JS → no tap, so the slideshow stays off and the audio stays silent */
+      .slideshow { display: none !important; }
+      .bg-music { display: none !important; }
+    </style>
+  </noscript>
+</head>
+
+<body class="is-sealed">
+
+  <!-- ============================================================
+       SCENE 3 BACKDROP — slow crossfading slideshow of the 26 photos.
+       Two layers take turns, so a picture is fetched only moments
+       before it appears.
+       Each layer holds the WHOLE photograph (object-fit: contain), so
+       nothing is ever cropped or stretched whatever the screen shape,
+       plus a soft blurred copy of the same photo that fills the rest
+       of the screen edge to edge. Both sit behind the letter at full
+       brightness and read through the frosted ivory paper.
+       ============================================================ -->
+  <div class="slideshow" id="slideshow" aria-hidden="true">
+    <div class="slideshow__slide is-active" id="slideA">
+      <img class="slideshow__photo" alt="" decoding="async" fetchpriority="low">
+    </div>
+    <div class="slideshow__slide" id="slideB">
+      <img class="slideshow__photo" alt="" decoding="async" fetchpriority="low">
+    </div>
+  </div>
+
+  <!-- Decorative floating hearts / dots behind everything -->
+  <div class="ambient" id="ambient" aria-hidden="true"></div>
+
+  <!-- Confetti canvas used by Scene 4 -->
+  <canvas class="confetti" id="confetti" aria-hidden="true"></canvas>
+
+  <!-- Background music: the original MP3, looped, with NO controls.
+       script.js starts it on the first tap of the envelope (autoplay policy)
+       and it keeps playing through the whole letter. -->
+  <audio class="bg-music" id="bgMusic" src="assets/music/ORU-KAATHILOLA-NJAN-SnapYT.App.mp3"
+         loop preload="metadata" playsinline aria-hidden="true"></audio>
+
+  <!-- ==========================================================
+       SCENE 1 + SCENE 2 — sealed envelope & opening animation
+       ========================================================== -->
+  <section class="scene scene--stage" id="stage" aria-label="A sealed envelope waiting to be opened">
+    <div class="stage__inner">
+
+      <p class="stage__eyebrow">A little something, just for you...</p>
+
+      <!-- The envelope itself is the button: works for mouse, keyboard and touch -->
+      <button class="envelope-btn" id="openBtn" type="button" aria-label="Tap the envelope to open your letter">
+        <span class="envelope-float">
+          <span class="envelope" id="envelope">
+
+            <!-- back panel -->
+            <span class="envelope__back" aria-hidden="true"></span>
+
+            <!-- the letter that slides out (decorative here; the real text lives in Scene 3) -->
+            <span class="letter-card" aria-hidden="true">
+              <span class="letter-card__heart">🤍</span>
+              <span class="letter-card__line"></span>
+              <span class="letter-card__line"></span>
+              <span class="letter-card__line letter-card__line--short"></span>
+              <span class="letter-card__line"></span>
+              <span class="letter-card__line letter-card__line--short"></span>
+            </span>
+
+            <!-- front pocket, carrying the address -->
+            <span class="envelope__front">
+              <!-- postage stamp: the photo from Downloads, aspect ratio preserved -->
+              <span class="envelope__stamp" aria-hidden="true">
+                <img src="assets/stamp.jpg" alt="" width="306" height="420" decoding="async">
+              </span>
+              <span class="envelope__address">To my Paatu 🤍</span>
+              <span class="envelope__postmark" aria-hidden="true">with<br>love</span>
+            </span>
+
+            <!-- closing flap (rotates open in Scene 2) -->
+            <span class="envelope__flap" aria-hidden="true"></span>
+
+            <!-- burgundy wax seal (breaks in Scene 2) -->
+            <span class="wax-seal" id="waxSeal" aria-hidden="true">
+              <span class="wax-seal__mark">P</span>
+            </span>
+
+          </span>
+        </span>
+      </button>
+
+      <p class="stage__hint" id="openHint">
+        <span class="stage__hint-dot" aria-hidden="true"></span>
+        Tap the envelope to open your letter
+      </p>
+
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       SCENE 3 + SCENE 4 — the letter and the birthday ending
+       Kept hidden (visibility:hidden + inert) until the envelope opens
+       ========================================================== -->
+  <main class="scene scene--letter" id="letterScene" aria-hidden="true" inert>
+    <article class="paper" aria-labelledby="letterHeading">
+      <span class="paper__ornament" aria-hidden="true">✦</span>
+
+      <h1 class="paper__salutation" id="letterHeading" tabindex="-1">Paatu Maaa,</h1>
+
+      <div class="paper__body">
+        <p>First of all thanks a lottt for this bday msgg... Actually last yearle bday msg aykmbo enk nalla pedi indayy orupakshe ath first and last aay povonn... But so blessed to send this message too for the next bday msg... Nee aan aa contact keep chythee🙌🏻.. 🙂‍↕️.. Ee vatm gift onlaataa.. Koree aaloich but mitay drs onnm vaangi tharan thonnanla🙂‍↔️.. Enk spcl aaytt nthelm tharan thonnyal apo aycharata bday gift, pending vcho gift.. Ee bday is veryy spcl, btech graduate, joli indd, njn illa😒 okke kondum nee baynkra happy aanenn ariyaaa... Thanks a lott my dearestestest for being my favoritestest for 1 moree year....Ellaaa varshom aykan enk baagym undaavtee...Kaynja 3 divsm nte lyfl njn chathalm maraklaaa...Nee addipoliyaan kiduvaaan pwoliyaan superaaan ente paatu aan🙂...Koodthl onm parayan la... Nee ipo chynth oke thnne angtt chykaa... Itheeepole thnne munnott povka... Nee chynth ellaam enk ishton... Enk ninne enneka ishton.... Namma orumich spend cheytha koree moments maathruldii ipo lyfl enk... Kaanana ellaarodm njn paraym... Angne paraylaa... But evdokyo nthokyooo miss chymboo njn avrodoke paraym, once i had a tymm... Nee poye pne njn aarodm mindeetlaaa angnee.. Still i make sure nee indakya njn ennum angne thnne indavm.. Thankyou for giving me a life my dearestt... Mikkorum ee msg aykna divsom namma innthe pole thall aavan chance indd bday spcl thall... Still first ithenne vaayknotaa... Paatunte lettr enk kaanand ariyaa... Annokke pne namk oro daysm oro momentsm enni parayarnn but ipo😌. ... Ann parnja poleee Nte sreejunem rich daddynem abhinem, thejenem, sajnenem, adithyenem, kaakenem, sethunem, nayanem, ikinem, nivedenem, pinkynem akkenem ravi chtnem akkede chova chknem😒 maneeeshuneeem (enneka velya msg idorikm) durmanem sureshnem favorite vasanthnem vishalunem(poy kaanta achn parnja polee) enemykalaya sarath nem avnte achnem gilsenem pne twin nem😒 okke enk thannenu orupaad thanks indta... Ivroke ullondan ofcalylm vtlaylm okke odikne ipo lyf.. Once more i wish you the most happiest bday you can ever have... Still 2025 athrom varlelm😌🫶... Happyyyyyy bdayyyyyy my best halff.....</p>
+      </div>
+
+      <p class="paper__signoff">From your most biggest fan😌🤍</p>
+
+      <span class="paper__ornament paper__ornament--bottom" aria-hidden="true">✦</span>
+    </article>
+
+    <!-- SCENE 4 — revealed when the reader reaches the end of the letter -->
+    <footer class="ending" id="ending">
+      <div class="ending__rule" aria-hidden="true"><span>🤍</span></div>
+      <p class="ending__greeting">Happyyyyyy bdayyyyyy, my best halff! 🤍</p>
+      <p class="ending__signature">From your most biggest fan 😌🤍</p>
+      <button class="replay" id="replayBtn" type="button">
+        <span aria-hidden="true">↺</span>&nbsp; Read it again
+      </button>
+    </footer>
+
+    <!-- Deliberately empty space (one full screen tall) after the ending, so
+         scrolling past "Read it again" leaves the photo slideshow alone on the
+         screen — nothing but the pictures. Purely decorative, no content. -->
+    <div class="letter-outro" aria-hidden="true"></div>
+  </main>
+
+</body>
+</html>
