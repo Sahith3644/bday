@@ -1,5 +1,6 @@
 # Deployment / editor leftovers
 .vercel
+.env*
 .vscode
 .idea
 
